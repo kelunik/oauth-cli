@@ -1,0 +1,23 @@
+{
+    "name": "kelunik/oauth-cli",
+    "description": "Allows using OAuth as login method on CLI.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Niklas Keller",
+            "email": "me@kelunik.com"
+        }
+    ],
+    "autoload": {
+        "files": [
+            "src/functions.php"
+        ]
+    },
+    "require": {
+        "amphp/amp": "^2.0",
+        "amphp/artax": "^3.0",
+        "kelunik/oauth": "^0.1.1",
+        "amphp/aerys": "^0.6.0"
+    }
+}

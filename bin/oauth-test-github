@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+<?php
+
+use Amp\Artax\DefaultClient;
+use Kelunik\OAuth\Identity;
+use function Kelunik\OAuthCli\authenticate;
+
+require __DIR__ . "/../vendor/autoload.php";
+
+if (count($argv) !== 3) {
+    print "Usage: bin/oauth-test-github <clientId> <clientSecret>" . PHP_EOL;
+    exit(1);
+}
+
+$provider = new Kelunik\OAuth\Providers\GitHub(new DefaultClient, "http://127.0.0.1:1337/oauth", $argv[1], $argv[2]);
+
+/** @var string $accessToken */
+$accessToken = Amp\Promise\wait(authenticate($provider));
+
+/** @var Identity $identity */
+$identity = Amp\Promise\wait($provider->getIdentity($accessToken));
+
+print "Successfully authenticated as " . $identity->getName() . "." . PHP_EOL;
