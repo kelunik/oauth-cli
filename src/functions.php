@@ -2,51 +2,56 @@
 
 namespace Kelunik\OAuthCli;
 
-use Aerys\Host;
-use Aerys\Request;
-use Aerys\Response;
-use Amp\Deferred;
-use Amp\Loop;
-use Amp\Promise;
+use Amp\ByteStream\ReadableBuffer;
+use Amp\DeferredFuture;
+use Amp\Http\Server\DefaultErrorHandler;
+use Amp\Http\Server\Request;
+use Amp\Http\Server\RequestHandler\ClosureRequestHandler;
+use Amp\Http\Server\Response;
+use Amp\Http\Server\SocketHttpServer;
+use Amp\Socket\InternetAddress;
 use Kelunik\OAuth\Provider;
 use Psr\Log\NullLogger;
-use function Aerys\initServer;
-use function Amp\call;
 
-function authenticate(Provider $provider, int $localHttpPort = 1337): Promise {
-    return call(function () use ($provider, $localHttpPort) {
-        $state = \bin2hex(\random_bytes(32));
+function authenticate(Provider $provider, int $localHttpPort = 1337): string
+{
+    $state = \bin2hex(\random_bytes(32));
 
-        $deferred = new Deferred;
-        $deferredPromise = $deferred->promise();
+    $deferred = new DeferredFuture;
+    $future = $deferred->getFuture();
 
-        $host = (new Host)
-            ->name("localhost")
-            ->expose("127.0.0.1", $localHttpPort)
-            ->use(function (Request $request, Response $response) use ($state, &$deferred) {
-                if (!$deferred) {
-                    return;
-                }
+    $server = new SocketHttpServer(new NullLogger());
+    $server->expose(new InternetAddress('127.0.0.1', $localHttpPort));
 
-                if (hash_equals($request->getParam("state"), $state)) {
-                    yield $response->end(file_get_contents(__DIR__ . "/../res/authentication-complete.html"));
+    $requestHandler = new ClosureRequestHandler(function (Request $request) use (&$deferred, $state): Response {
+        if ($deferred) {
+            return new Response();
+        }
 
-                    Loop::defer(function () use ($request, &$deferred) {
-                        $deferred->resolve($request->getParam("code"));
-                        $deferred = null;
-                    });
-                }
-            });
+        $query = $request->getUri()->getQuery();
+        \parse_str($query, $params);
 
-        $server = initServer(new NullLogger, [$host]);
-        yield $server->start();
+        if (hash_equals($params["state"], $state)) {
+            $deferred?->complete($params['code']);
+            $deferred = null;
 
-        exec("xdg-open " . escapeshellarg($provider->getAuthorizationUrl($state)) . " 2>/dev/null");
+            return new Response(
+                200,
+                [],
+                new ReadableBuffer(file_get_contents(__DIR__ . "/../res/authentication-complete.html"))
+            );
+        }
 
-        $code = yield $deferredPromise;
-
-        yield $server->stop();
-
-        return $provider->exchangeAccessTokenForCode($code);
+        return new Response();
     });
+
+    $server->start($requestHandler, new DefaultErrorHandler());
+
+    exec("xdg-open " . escapeshellarg($provider->getAuthorizationUrl($state)) . " 2>/dev/null");
+
+    $code = $future->await();
+
+    $server->stop();
+
+    return $provider->exchangeAccessTokenForCode($code);
 }

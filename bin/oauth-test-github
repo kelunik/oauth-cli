@@ -1,8 +1,8 @@
 #!/usr/bin/env php
 <?php
 
-use Amp\Artax\DefaultClient;
-use Kelunik\OAuth\Identity;
+use Amp\Http\Client\HttpClientBuilder;
+use Kelunik\OAuth\Providers\GitHubProvider;
 use function Kelunik\OAuthCli\authenticate;
 
 require __DIR__ . "/../vendor/autoload.php";
@@ -12,12 +12,10 @@ if (count($argv) !== 3) {
     exit(1);
 }
 
-$provider = new Kelunik\OAuth\Providers\GitHub(new DefaultClient, "http://127.0.0.1:1337/oauth", $argv[1], $argv[2]);
+$provider = new GitHubProvider(HttpClientBuilder::buildDefault(), "http://127.0.0.1:1337/oauth", $argv[1], $argv[2]);
 
-/** @var string $accessToken */
-$accessToken = Amp\Promise\wait(authenticate($provider));
+$accessToken = authenticate($provider);
 
-/** @var Identity $identity */
-$identity = Amp\Promise\wait($provider->getIdentity($accessToken));
+$identity = $provider->getIdentity($accessToken);
 
 print "Successfully authenticated as " . $identity->getName() . "." . PHP_EOL;
