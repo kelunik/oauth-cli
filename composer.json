@@ -22,5 +22,10 @@
         "amphp/http-client": "^5",
         "amphp/http-server": "^3",
         "kelunik/oauth": "^1"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "2.x-dev"
+        }
     }
 }
