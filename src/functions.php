@@ -24,7 +24,7 @@ function authenticate(Provider $provider, int $localHttpPort = 1337): string
     $server->expose(new InternetAddress('127.0.0.1', $localHttpPort));
 
     $requestHandler = new ClosureRequestHandler(function (Request $request) use (&$deferred, $state): Response {
-        if ($deferred) {
+        if (!$deferred) {
             return new Response();
         }
 
@@ -47,7 +47,7 @@ function authenticate(Provider $provider, int $localHttpPort = 1337): string
 
     $server->start($requestHandler, new DefaultErrorHandler());
 
-    exec("xdg-open " . escapeshellarg($provider->getAuthorizationUrl($state)) . " 2>/dev/null");
+    exec("open " . escapeshellarg($provider->getAuthorizationUrl($state)));
 
     $code = $future->await();
 
